@@ -8,23 +8,81 @@
 #include "lvgl.h"
 #include "LVGL_example.h"
 
+extern const lv_img_dsc_t Eye;
+extern const lv_img_dsc_t mask;
 
-#define NUM_ARCS 5
-void * arcs[NUM_ARCS];
-uint16_t arcsStart[NUM_ARCS] = {0, 45, 90, 135, 180};
 
-static void set_angle(void * obj, int32_t v)
+int eyeX = 0;
+int eyeY = 0;
+int minSpeed = 1;
+int maxSpeed = 2;
+uint8_t step = 0;
+uint8_t numSteps =6;
+int stopCount = 0;
+
+int16_t steps[10][2] = {
+		{0,0},
+		{40,0},
+		{-40,0},
+		{0, 30},
+		{40,0},
+		{0,0},
+};
+
+
+
+static void eyePos(void * obj, int32_t v)
 {
-   // lv_arc_set_value(obj, v);
-	for (int i=0; i < NUM_ARCS; i++){
-		uint16_t r = arcsStart[i];
-		r = (r + v) % 360;
-		if ( (i % 2) == 0){
-			lv_arc_set_rotation(arcs[i], r);
-		} else {
-			lv_arc_set_rotation(arcs[i], 360 - r);
+	if ((eyeX == steps[step][0]) && (eyeY == steps[step][1])){
+		stopCount ++;
+		if (stopCount < 50){
+			return;
+		}
+		stopCount = 0;
+		step++;
+		if (step >= numSteps){
+			step = 0;
 		}
 	}
+
+	int dif;
+
+	dif = steps[step][0] - eyeX;
+	if (dif != 0){
+		if (dif > 0){
+			if (dif > maxSpeed){
+				eyeX +=  maxSpeed;
+			} else {
+				eyeX +=  minSpeed;
+			}
+		} else {
+			if ((dif* -1) > maxSpeed){
+				eyeX -=  maxSpeed;
+			} else {
+				eyeX -=  minSpeed;
+			}
+		}
+	}
+
+	dif = steps[step][1] - eyeY;
+	if (dif != 0){
+		if (dif > 0){
+			if (dif > maxSpeed){
+				eyeY +=  maxSpeed;
+			} else {
+				eyeY +=  minSpeed;
+			}
+		} else {
+			if ((dif* -1) > maxSpeed){
+				eyeY -=  maxSpeed;
+			} else {
+				eyeY -=  minSpeed;
+			}
+		}
+	}
+
+	lv_obj_t *img1 =(lv_obj_t *) obj;
+	lv_obj_align(img1, LV_ALIGN_CENTER, eyeX, eyeY);
 }
 
 
@@ -112,124 +170,32 @@ void Widgets_Init(void)
 
     lv_obj_t *tileJD = lv_tileview_add_tile(tv, 0, 0, LV_DIR_TOP|LV_DIR_BOTTOM);
 
-
-
-    lv_obj_t * arc = lv_arc_create(tileJD);
-    lv_obj_set_size(arc, DISP_HOR_RES, DISP_VER_RES);
-	lv_arc_set_rotation(arc, 270);
-	lv_arc_set_bg_angles(arc, 0, 0);
-	lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-	//lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
-	lv_obj_clear_flag( arc,  LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_center(arc);
-
-	lv_obj_t * arc1 = lv_arc_create(tileJD);
-	lv_obj_set_size(arc1, DISP_HOR_RES-20, DISP_VER_RES-20);
-	lv_arc_set_rotation(arc1, 15);
-	lv_arc_set_bg_angles(arc1, 0, 0);
-	lv_obj_remove_style(arc1, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-	//lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
-	lv_obj_clear_flag( arc1,  LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_center(arc1);
-	lv_obj_set_style_arc_color(
-			 arc1,
-			 lv_palette_lighten(LV_PALETTE_RED, 1),
-			 LV_PART_INDICATOR);
-
-	lv_obj_t * arc2 = lv_arc_create(tileJD);
-	lv_obj_set_size(arc2, DISP_HOR_RES-20*2, DISP_VER_RES-20*2);
-	lv_arc_set_rotation(arc2, 45);
-	lv_arc_set_bg_angles(arc2, 0, 0);
-	lv_obj_remove_style(arc2, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-	//lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
-	lv_obj_clear_flag( arc2,  LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_center(arc2);
-    lv_obj_set_style_arc_color(
-			 arc2,
-			 lv_palette_lighten(LV_PALETTE_RED, 3),
-			 LV_PART_INDICATOR);
-
-    lv_obj_t * arc3 = lv_arc_create(tileJD);
-	lv_obj_set_size(arc3, DISP_HOR_RES-20*3, DISP_VER_RES-20*3);
-	lv_arc_set_rotation(arc3, 45);
-	lv_arc_set_bg_angles(arc3, 0, 0);
-	lv_obj_remove_style(arc3, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-	//lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
-	lv_obj_clear_flag( arc3,  LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_center(arc3);
-	lv_obj_set_style_arc_color(
-			 arc3,
-			 lv_palette_lighten(LV_PALETTE_GREEN, 3),
-			 LV_PART_INDICATOR);
-
-
-	lv_obj_t * arc4 = lv_arc_create(tileJD);
-	lv_obj_set_size(arc4, DISP_HOR_RES-20*4, DISP_VER_RES-20*4);
-	lv_arc_set_rotation(arc4, 45);
-	lv_arc_set_bg_angles(arc4, 0, 0);
-	lv_obj_remove_style(arc4, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-	//lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
-	lv_obj_clear_flag( arc4,  LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_center(arc4);
-	lv_obj_set_style_arc_color(
-			 arc4,
-			 lv_palette_lighten(LV_PALETTE_GREEN, 1),
-			 LV_PART_INDICATOR);
-
-
-    arcs[0] = arc;
-    arcs[1] = arc1;
-    arcs[2] = arc2;
-    arcs[3] = arc3;
-    arcs[4] = arc4;
+	LV_IMG_DECLARE(Eye);
+	lv_obj_t *img1 = lv_img_create(tileJD);
+	lv_img_set_src(img1, &Eye);
+	lv_obj_align(img1, LV_ALIGN_CENTER, 0, 0);
 
 	lv_anim_t a;
 	lv_anim_init(&a);
 	//lv_anim_set_var(&a, arc);
-	lv_anim_set_var(&a, arcs);
-	lv_anim_set_exec_cb(&a, set_angle);
-	lv_anim_set_time(&a, 2000);
+	lv_anim_set_var(&a, img1);
+
+	lv_anim_set_time(&a, 3000);
+	lv_anim_set_repeat_delay(&a, 10);
 	lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);    /*Just for the demo*/
-	lv_anim_set_repeat_delay(&a, 0);
-	lv_anim_set_values(&a, 0, 360);
+	lv_anim_set_values(&a, 0, 100);
+	lv_anim_set_exec_cb(&a, eyePos);
 	lv_anim_start(&a);
 
-	//Label
-	static lv_style_t labelSt;
-	lv_style_init(&labelSt);
-	lv_style_set_text_font(&labelSt, &lv_font_montserrat_18);
-	lv_style_set_text_color(
-			&labelSt,
-			lv_color_make(0, 0x50, 0x10));
+
+	LV_IMG_DECLARE(mask);
+	lv_obj_t *mask1 = lv_img_create(tileJD);
+	lv_img_set_src(mask1, &mask);
+	lv_obj_align(mask1, LV_ALIGN_CENTER, 0, 0);
 
 
-	lv_obj_t * label1 = lv_label_create(tileJD);
-	lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
-	lv_label_set_text(label1, "Dr Jon EA");
-	lv_obj_set_width(label1, 150);  /*Set smaller width to make the lines wrap*/
-	lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
-	lv_obj_align(label1, LV_ALIGN_CENTER, 0, -20);
-	lv_obj_add_style(label1 , &labelSt,  LV_PART_MAIN);
 
 
-	//Button Tile
-	 lv_obj_t *tileBtn = lv_tileview_add_tile(tv, 0, 1, LV_DIR_TOP|LV_DIR_BOTTOM);
-	 /*Create a button and use the new styles*/
-	 lv_obj_t * btn = lv_btn_create(tileBtn);
-	 /* Remove the styles coming from the theme
-	  * Note that size and position are also stored as style properties
-	  * so lv_obj_remove_style_all will remove the set size and position too */
-	 lv_obj_remove_style_all(btn);
-	// lv_obj_set_pos(btn, 0, 0);
-	 lv_obj_set_size(btn, 120, 50);
-	 lv_obj_center(btn);
-	 lv_obj_add_style(btn, &style_base, 0);
-	 lv_obj_add_style(btn, &style_press, LV_STATE_PRESSED);
-
-	 /*Add a label to the button*/
-	 lv_obj_t * label = lv_label_create(btn);
-	 lv_label_set_text(label, "Button");
-	 lv_obj_center(label);
 
 }
 

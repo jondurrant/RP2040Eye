@@ -4,6 +4,8 @@ add_executable(${NAME}
         Widgets.c
         #ImageData.c
         main.c
+        Eye.c
+        mask.c
         )
 
 # Pull in our pico_stdlib which pulls in commonly used features
