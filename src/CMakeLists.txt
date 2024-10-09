@@ -33,6 +33,7 @@ pico_enable_stdio_uart(${NAME} 1)
 target_compile_definitions(${NAME} PRIVATE
     PICO_DEFAULT_UART_RX_PIN=17
     PICO_DEFAULT_UART_TX_PIN=16
+#    SUB_EYE=1
 )
 
 

@@ -7,6 +7,13 @@
 
 #include "lvgl.h"
 #include "LVGL_example.h"
+#include "hardware/uart.h"
+
+
+#define UART_ID uart1
+#define BAUD_RATE 115200
+#define UART_TX_PIN 4
+#define UART_RX_PIN 5
 
 extern const lv_img_dsc_t Eye;
 extern const lv_img_dsc_t mask;
@@ -17,7 +24,7 @@ int eyeY = 0;
 int minSpeed = 1;
 int maxSpeed = 2;
 uint8_t step = 0;
-uint8_t numSteps =6;
+
 int stopCount = 0;
 
 int16_t steps[10][2] = {
@@ -28,11 +35,134 @@ int16_t steps[10][2] = {
 		{40,0},
 		{0,0},
 };
+//uint8_t numSteps =6;
+
+int eyesSteps[10][5] = {
+		{2000, 0, 0, 0, 0},
+		{0500, 0, 0, 0, 0},
+		{1000, 0, 20, 0, 20},
+		{0700, 0, 20, 0, 20},
+		{1000, 0, 0, 0, 0},
+		{1000, 0, 0, 0, 0},
+		{2000, 40, 0, 40, 0},
+		{0500, 40, 0, 40, 0},
+		{4000, -40, 0, -40, 0},
+		{0500, -40, 0, -40, 0}
+};
+uint8_t numSteps =10;
+
+
+uint32_t startTime=0;
+float delX = 0.0;
+float delY = 0.0;
+
+
+static void setupUart(){
+    uart_init(UART_ID, BAUD_RATE);
+    gpio_set_function(UART_TX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_TX_PIN));
+    gpio_set_function(UART_RX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_RX_PIN));
+}
+
+static void startEyeMove(int ms, int targetX, int targetY){
+	delX = (float)( targetX - eyeX) / (float)ms;
+	delY = (float)( targetY - eyeY) / (float)ms;
+
+}
+
+static void deltaEyeMove(uint32_t sinceStart, lv_obj_t *eyeObj){
+	int x = eyeX + (int)(delX * (float)sinceStart);
+	int y = eyeY + (int)(delY * (float)sinceStart);
+
+	lv_obj_align(eyeObj, LV_ALIGN_CENTER, x, y);
+}
+
+static void tellSubEyeMove(int ms, int targetX, int targetY){
+	char buf[80];
+	sprintf(buf, "%d,%d,%d\n", ms, targetX, targetY);
+	uart_puts(uart1, buf);
+
+	printf("Sub Move to: %s\n", buf);
+
+	int tms, tx, ty;
+	sscanf(buf,"%d,%d,%d", &tms, &tx, &ty);
+	printf("Scanned %d, %d, %d\n", tms, tx, ty);
+
+}
+
+static void domEyePos(void * obj, int32_t v){
+	lv_obj_t *eyeObj =(lv_obj_t *) obj;
+
+	uint32_t now = to_ms_since_boot (get_absolute_time());
+	uint32_t sinceStart = now - startTime;
+	if (sinceStart > eyesSteps[step][0]){
+		eyeX = eyesSteps[step][1];
+		eyeY = eyesSteps[step][2];
+		lv_obj_align(eyeObj, LV_ALIGN_CENTER, eyeX, eyeY);
+		step++;
+		if (step >= numSteps){
+			step = 0;
+		}
+		startEyeMove(eyesSteps[step][0], eyesSteps[step][1], eyesSteps[step][2]);
+		tellSubEyeMove(eyesSteps[step][0], eyesSteps[step][3], eyesSteps[step][4]);
+		startTime = now;
+	} else {
+		  deltaEyeMove(sinceStart, eyeObj);
+	}
+}
+
+int subMS = 0;
+int subX = 0;
+int subY = 0;
+
+#define BUF_LEN 80
+char buf[BUF_LEN];
+uint bufI = 0;
+
+
+static void subRead(){
+	//printf("subRead: ");
+	while (uart_is_readable (uart1)){
+		char c = uart_getc (uart1);
+		buf[bufI] = c;
+		bufI++;
+		if (bufI >= BUF_LEN){
+			bufI=0;
+		}
+		if (c == '\n'){
+			eyeX = subX;
+			eyeY = subY;
+			sscanf(buf,"%d,%d,%d", &subMS, &subX, &subY);
+			printf("Scanned %d, %d, %d\n", subMS, subX, subY);
+			bufI = 0;
+			startEyeMove(subMS, subX, subY);
+			startTime =  to_ms_since_boot (get_absolute_time());
+			return;
+		}
+		//printf("%c", c);
+	}
+	//printf("Done\n");
+
+}
+
+static void subEyePos(void * obj, int32_t v){
+	lv_obj_t *eyeObj =(lv_obj_t *) obj;
+
+	subRead();
+
+	uint32_t now = to_ms_since_boot (get_absolute_time());
+	uint32_t sinceStart = now - startTime;
+	if (sinceStart > subMS){
+		eyeX = subX;
+		eyeY = subY;
+		lv_obj_align(eyeObj, LV_ALIGN_CENTER, eyeX, eyeY);
+	} else {
+		  deltaEyeMove(sinceStart, eyeObj);
+	}
+}
 
 
 
-static void eyePos(void * obj, int32_t v)
-{
+static void eyePos(void * obj, int32_t v){
 	if ((eyeX == steps[step][0]) && (eyeY == steps[step][1])){
 		stopCount ++;
 		if (stopCount < 50){
@@ -92,7 +222,7 @@ parameter:
 ********************************************************************************/
 void Widgets_Init(void)
 {
-	 //lv_group_t *group = LVGL_get_group();
+	 setupUart();
 
     // /*Style Config*/
     static lv_style_t style_base;
@@ -181,10 +311,15 @@ void Widgets_Init(void)
 	lv_anim_set_var(&a, img1);
 
 	lv_anim_set_time(&a, 3000);
-	lv_anim_set_repeat_delay(&a, 10);
+	lv_anim_set_repeat_delay(&a, 0);
 	lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);    /*Just for the demo*/
 	lv_anim_set_values(&a, 0, 100);
-	lv_anim_set_exec_cb(&a, eyePos);
+	//lv_anim_set_exec_cb(&a, eyePos);
+#ifdef SUB_EYE
+	lv_anim_set_exec_cb(&a, subEyePos);
+#else
+	lv_anim_set_exec_cb(&a, domEyePos);
+#endif
 	lv_anim_start(&a);
 
 
