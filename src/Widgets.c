@@ -9,7 +9,6 @@
 #include "LVGL_example.h"
 #include "hardware/uart.h"
 
-
 #define UART_ID uart1
 #define BAUD_RATE 115200
 #define UART_TX_PIN 4

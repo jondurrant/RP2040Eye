@@ -2,7 +2,6 @@ add_executable(${NAME}
         LCD_1in28_LVGL_test.c
         LVGL_example.c
         Widgets.c
-        #ImageData.c
         main.c
         Eye.c
         mask.c
@@ -13,9 +12,6 @@ target_link_libraries(${NAME}
 	pico_stdlib
 	Config 
 	LCD 
-#	Touch 
-#	GUI
-#	Fonts
 	QMI8658 
 	lvgl
 	hardware_clocks 
@@ -33,7 +29,7 @@ pico_enable_stdio_uart(${NAME} 1)
 target_compile_definitions(${NAME} PRIVATE
     PICO_DEFAULT_UART_RX_PIN=17
     PICO_DEFAULT_UART_TX_PIN=16
-#    SUB_EYE=1
+    #SUB_EYE=1
 )
 
 
